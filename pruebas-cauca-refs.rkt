@@ -195,7 +195,7 @@ end") "num"))
                                       in let f = proc (u : refto(num)) deref(u) end
                                          in applyref f (x) end end") "num"))
    (test-case "case con ramas del mismo tipo"
-              (check-equal? (tipo-de "case n of 1 => 10 of 2 => 20 else 0 end") "num"))
+              (check-equal? (tipo-de "case n of 1 => 10 2 => 20 else 0 end") "num"))
    (test-case "procedimiento de orden superior"
               (check-equal? (tipo-de "proc (f : (num -> num), x : num) apply f (x) end")
                             "((num -> num) * num -> num)"))))
@@ -264,13 +264,9 @@ end") "num"))
 (define fallidas
   (+ (run-tests almacen)
      (run-tests paso-por-referencia)
-<<<<<<< Updated upstream
-=======
      (run-tests paso-por-referencia-extra)
->>>>>>> Stashed changes
      (run-tests bien-tipados)
      (run-tests mal-tipados)))
-
 
 (eopl:printf "~%==========================================~%")
 (eopl:printf "  pruebas fallidas en total: ~s~%" fallidas)
