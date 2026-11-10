@@ -1,5 +1,6 @@
 #lang eopl
-;Autores: Nombre1 Codigo1, Nombre2 Codigo2
+;Autores: Adriana Milena Noscue Dagua 2477336, Sebastian Cucalon Astorquiza 2477344
+;Santiago Torres Rojas 2380301, Nicolle Camila Hoyos Puin 2380608
 
 #|
   Taller 3 — Cauca con referencias y tipos.
@@ -25,34 +26,75 @@
     4. deref sobre una referencia fuera de rango levanta eopl:error
 |#
 
+;; TAD Referencia
+;; =============================================================================
+
+; referencia: Datatype que representa una dirección abstracta de memoria.
+(define-datatype referencia referencia?
+  (a-ref (pos integer?)))
+
+;; El Almacén (Memoria global)
+;; =============================================================================
+
+;;contiene la lista de celdas del almacén.
+(define the-store 'uninitialized)
+
 ;; empty-store : -> almacen
 ;; El almacén sin celdas.
 (define empty-store
   (lambda ()
-    (eopl:error 'empty-store "Sin implementar")))
+    '()))
 
 ;; initialize-store! : -> void
 ;; Deja el almacén vacío. Se llama al empezar cada programa.
 (define initialize-store!
   (lambda ()
-    (eopl:error 'initialize-store! "Sin implementar")))
+    (set! the-store (empty-store))))
+
+;; get-store : () -> list
+;; Propósito: Retorna el estado actual del almacén
+(define get-store
+  (lambda ()
+    the-store))
 
 ;; newref! : valor -> referencia
 ;; Agrega una celda con el valor y retorna la referencia que la nombra.
 (define newref!
   (lambda (val)
-    (eopl:error 'newref! "Sin implementar")))
+    (let ([len (length the-store)])
+      (set! the-store (append the-store (list val)))
+      (a-ref len))))
 
 ;; deref : referencia -> valor
 ;; Lee la celda. Si la referencia está fuera de rango, levanta eopl:error.
 (define deref
   (lambda (ref)
-    (eopl:error 'deref "Sin implementar")))
+    (cases referencia ref
+      (a-ref (pos)
+        (if (and (>= pos 0) (< pos (length the-store)))
+            (list-ref the-store pos)
+            (eopl:error 'deref "Referencia fuera de rango: ~a" pos))))))
+
+;; replace-at : list x integer x valor -> list
+;; Propósito: Función auxiliar que reemplaza el elemento en el índice pos por nuevo-val.
+(define replace-at
+  (lambda (lst pos nuevo-val)
+    (cond
+      [(null? lst) '()]
+      [(= pos 0) (cons nuevo-val (cdr lst))]
+      [else (cons (car lst) (replace-at (cdr lst) (- pos 1) nuevo-val))])))
 
 ;; setref! : referencia x valor -> void
 ;; Escribe el valor en la celda y deja las demás intactas.
 (define setref!
   (lambda (ref val)
-    (eopl:error 'setref! "Sin implementar")))
+    (cases referencia ref
+      (a-ref (pos)
+        (if (and (>= pos 0) (< pos (length the-store)))
+            (begin
+              (set! the-store (replace-at the-store pos val))
+              1)
+            (eopl:error 'setref! "Referencia fuera de rango: ~a" pos))))))
+
 
 (provide (all-defined-out))

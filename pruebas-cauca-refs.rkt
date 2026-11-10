@@ -1,5 +1,6 @@
 #lang eopl
-;Autores: Nombre1 Codigo1, Nombre2 Codigo2
+;Autores: Adriana Milena Noscue Dagua 2477336, Sebastian Cucalon Astorquiza 2477344
+;Santiago Torres Rojas 2380301, Nicolle Camila Hoyos Puin 2380608
 
 #|
   Pruebas del interpretador con referencias y del chequeador de tipos.
@@ -84,6 +85,25 @@ end") 99))
    (test-case "el almacen arranca vacio en cada programa"
               (check-equal? (corre "deref(newref(1))") 1)
               (check-equal? (corre "deref(newref(1))") 1))
+
+   ;; Pruebas requeridas de la Parte 1 integradas
+   (test-case "1. Crear y leer referencia"
+              (check-equal? (corre "let r = newref(10) in deref(r) end") 10))
+   (test-case "2. Modificar celda con setref"
+              (check-equal? (corre "let r = newref(5) in begin setref(r, 20); deref(r) end end") 20))
+   (test-case "3. Contador mutable que sobrevive"
+              (check-equal? (corre "let c = newref(0) in begin setref(c, +(deref(c), 1)); setref(c, +(deref(c), 1)); deref(c) end end") 2))
+   (test-case "4. Aliasing (dos variables apuntando a la misma celda)"
+              (check-equal? (corre "let celda = newref(5) in let otro = celda in begin setref(otro, 99); deref(celda) end end end") 99))
+   (test-case "5. swap entre dos referencias"
+              (check-equal? (corre "let a = newref(7) in let b = newref(2) in begin swap(a, b); +(deref(a), *(10, deref(b))) end end end") 72))
+   (test-case "6. Error: deref sobre un valor que no es referencia"
+              (check-exn exn:fail? (lambda () (corre "deref(100)"))))
+   (test-case "7. Error: setref sobre un valor que no es referencia"
+              (check-exn exn:fail? (lambda () (corre "setref(5, 10)"))))
+   (test-case "8. Error: swap con argumentos que no son referencias"
+              (check-exn exn:fail? (lambda () (corre "let r = newref(1) in swap(r, 50) end"))))
+   
    (test-case "los casos de error del almacen"
               (check-exn exn:fail? (lambda () (corre "deref(5)")))
               (check-exn exn:fail? (lambda () (corre "setref(1, 2)")))
@@ -175,7 +195,7 @@ end") "num"))
                                       in let f = proc (u : refto(num)) deref(u) end
                                          in applyref f (x) end end") "num"))
    (test-case "case con ramas del mismo tipo"
-              (check-equal? (tipo-de "case n of 1 => 10 of 2 => 20 otherwise => 0 end") "num"))
+              (check-equal? (tipo-de "case n of 1 => 10 of 2 => 20 else 0 end") "num"))
    (test-case "procedimiento de orden superior"
               (check-equal? (tipo-de "proc (f : (num -> num), x : num) apply f (x) end")
                             "((num -> num) * num -> num)"))))
@@ -218,13 +238,46 @@ end") "num"))
                          (lambda () (tipo-de "let z = 1
                                               in let f = proc (u : refto(num)) deref(u) end
                                                  in applyref f (z) end end"))))))
+(define paso-por-referencia-extra
+  (test-suite
+   "Parte 2 (grupo): ejemplos adicionales de paso por referencia"
+   (test-case "contador con applyref: la escritura se ve afuera"
+              (check-equal? (corre "let c = newref(0) inc = proc (r : refto(num)) setref(r, add1(deref(r))) end in begin applyref inc (c); applyref inc (c); deref(c) end end") 2))
+   (test-case "contador con apply: la escritura se pierde"
+              (check-equal? (corre "let c = newref(0) inc = proc (r : refto(num)) setref(r, add1(deref(r))) end in begin apply inc (c); apply inc (c); deref(c) end end") 0))
+   (test-case "sumar a en b con applyref"
+              (check-equal? (corre "let a = newref(3) b = newref(4) sumar = proc (x : refto(num), y : refto(num)) setref(x, +(deref(x), deref(y))) end in begin applyref sumar (a, b); deref(a) end end") 7))
+   (test-case "alias: d y c comparten la celda y applyref la respeta"
+              (check-equal? (corre "let c = newref(0) inc = proc (r : refto(num)) setref(r, add1(deref(r))) end in let d = c in begin applyref inc (d); deref(c) end end end") 1))
+   (test-case "error: argumento ligado a un numero, no a una referencia"
+              (check-exn exn:fail?
+                         (lambda () (corre "let f = proc (r : refto(num)) deref(r) end in applyref f (n) end"))))
+   (test-case "error: aridad incorrecta"
+              (check-exn exn:fail?
+                         (lambda () (corre "let c = newref(1) f = proc (r : refto(num)) deref(r) end in applyref f (c, c) end"))))
+   (test-case "error: el operador no es un procedimiento"
+              (check-exn exn:fail?
+                         (lambda () (corre "let c = newref(1) in applyref c (c) end"))))))
+
+
 
 (define fallidas
   (+ (run-tests almacen)
      (run-tests paso-por-referencia)
+<<<<<<< Updated upstream
+=======
+     (run-tests paso-por-referencia-extra)
+>>>>>>> Stashed changes
      (run-tests bien-tipados)
      (run-tests mal-tipados)))
+
 
 (eopl:printf "~%==========================================~%")
 (eopl:printf "  pruebas fallidas en total: ~s~%" fallidas)
 (eopl:printf "==========================================~%")
+
+
+
+
+
+
