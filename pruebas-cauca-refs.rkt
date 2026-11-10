@@ -238,13 +238,46 @@ end") "num"))
                          (lambda () (tipo-de "let z = 1
                                               in let f = proc (u : refto(num)) deref(u) end
                                                  in applyref f (z) end end"))))))
+(define paso-por-referencia-extra
+  (test-suite
+   "Parte 2 (grupo): ejemplos adicionales de paso por referencia"
+   (test-case "contador con applyref: la escritura se ve afuera"
+              (check-equal? (corre "let c = newref(0) inc = proc (r : refto(num)) setref(r, add1(deref(r))) end in begin applyref inc (c); applyref inc (c); deref(c) end end") 2))
+   (test-case "contador con apply: la escritura se pierde"
+              (check-equal? (corre "let c = newref(0) inc = proc (r : refto(num)) setref(r, add1(deref(r))) end in begin apply inc (c); apply inc (c); deref(c) end end") 0))
+   (test-case "sumar a en b con applyref"
+              (check-equal? (corre "let a = newref(3) b = newref(4) sumar = proc (x : refto(num), y : refto(num)) setref(x, +(deref(x), deref(y))) end in begin applyref sumar (a, b); deref(a) end end") 7))
+   (test-case "alias: d y c comparten la celda y applyref la respeta"
+              (check-equal? (corre "let c = newref(0) inc = proc (r : refto(num)) setref(r, add1(deref(r))) end in let d = c in begin applyref inc (d); deref(c) end end end") 1))
+   (test-case "error: argumento ligado a un numero, no a una referencia"
+              (check-exn exn:fail?
+                         (lambda () (corre "let f = proc (r : refto(num)) deref(r) end in applyref f (n) end"))))
+   (test-case "error: aridad incorrecta"
+              (check-exn exn:fail?
+                         (lambda () (corre "let c = newref(1) f = proc (r : refto(num)) deref(r) end in applyref f (c, c) end"))))
+   (test-case "error: el operador no es un procedimiento"
+              (check-exn exn:fail?
+                         (lambda () (corre "let c = newref(1) in applyref c (c) end"))))))
+
+
 
 (define fallidas
   (+ (run-tests almacen)
      (run-tests paso-por-referencia)
+<<<<<<< Updated upstream
+=======
+     (run-tests paso-por-referencia-extra)
+>>>>>>> Stashed changes
      (run-tests bien-tipados)
      (run-tests mal-tipados)))
+
 
 (eopl:printf "~%==========================================~%")
 (eopl:printf "  pruebas fallidas en total: ~s~%" fallidas)
 (eopl:printf "==========================================~%")
+
+
+
+
+
+
