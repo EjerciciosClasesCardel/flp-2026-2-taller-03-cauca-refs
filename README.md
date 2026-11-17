@@ -19,10 +19,10 @@ parte del grupo.
 
 | Nombre completo | Código | Correo institucional |
 |---|---|---|
-| | | |
-| | | |
-| | | |
-| | | |
+| Adriana Milena Noscue Dagua | 2477336 | adriana.noscue@correounivalle.edu.co |
+| Sebastian Cucalon Astorquiza | 2477344 | sebastian.cucalon@correounivalle.edu.co |
+| Santiago Torres Rojas | 2380301 | santiago.torres.rojas@correounivalle.edu.co |
+| Nicolle Camila Hoyos Puin | 2380608 | nicolle.hoyos@correounivalle.edu.co |	
 
 ## Cómo se entrega
 
