@@ -228,3 +228,147 @@ end") "num"))
 (eopl:printf "~%==========================================~%")
 (eopl:printf "  pruebas fallidas en total: ~s~%" fallidas)
 (eopl:printf "==========================================~%")
+
+;;; ==========================================================
+;;; Pruebas adicionales del interprete: almacen y paso por referencia
+;;; (Juan Eduardo Calderon Jaramillo 2611001-3743)
+;;; Las de arriba no se tocan; estas se agregan a continuacion.
+;;; ==========================================================
+
+;; posicion-de : referencia -> integer
+;; La posicion que nombra una referencia (solo para comprobar el TAD).
+(define posicion-de
+  (lambda (r)
+    (cases referencia r
+      (a-ref (pos) pos))))
+
+(define almacen-adicional
+  (test-suite
+   "Parte 1 (adicional): TAD y operaciones del almacen"
+   (test-case "newref! entrega posiciones consecutivas y el almacen solo crece por newref!"
+              (initialize-store!)
+              (check-equal? (length the-store) 0)
+              (let* ((r0 (newref! 10))
+                     (r1 (newref! 20)))
+                (check-equal? (posicion-de r0) 0)
+                (check-equal? (posicion-de r1) 1)
+                (check-equal? (length the-store) 2)
+                (setref! r0 99)
+                (check-equal? (length the-store) 2)
+                (deref r0)
+                (check-equal? (length the-store) 2)))
+   (test-case "setref! cambia una sola celda y deja las demas intactas"
+              (initialize-store!)
+              (let* ((r0 (newref! 1))
+                     (r1 (newref! 2))
+                     (r2 (newref! 3)))
+                (setref! r1 50)
+                (check-equal? (deref r0) 1)
+                (check-equal? (deref r1) 50)
+                (check-equal? (deref r2) 3)))
+   (test-case "deref y setref! fuera de rango levantan error"
+              (initialize-store!)
+              (newref! 1)
+              (check-exn exn:fail? (lambda () (deref (a-ref 5))))
+              (check-exn exn:fail? (lambda () (deref (a-ref -1))))
+              (check-exn exn:fail? (lambda () (setref! (a-ref 1) 0))))
+   (test-case "newref y deref anidados"
+              (check-equal? (corre "deref(deref(newref(newref(8))))") 8))
+   (test-case "setref evalua de izquierda a derecha y el orden de begin se observa"
+              (check-equal? (corre "let c = newref(1)
+                                    in begin
+                                         setref(c, *(deref(c), 10));
+                                         setref(c, +(deref(c), 3));
+                                         deref(c)
+                                       end
+                                    end") 13)
+              (check-equal? (corre "begin 7 end") 7))
+   (test-case "swap de una referencia consigo misma no pierde el valor"
+              (check-equal? (corre "let a = newref(5) in begin swap(a, a); deref(a) end end") 5)
+              (check-equal? (corre "let a = newref(5) in swap(a, a) end") 5))
+   (test-case "swap retorna el contenido anterior de la segunda celda"
+              (check-equal? (corre "let a = newref(1) b = newref(2)
+                                    in +(swap(a, b), *(10, deref(a))) end") 22))
+   (test-case "alias encadenado: tres nombres, una sola celda"
+              (check-equal? (corre "let a = newref(1)
+                                    in let b = a
+                                       in let c = b
+                                          in begin setref(c, 42); +(deref(a), deref(b)) end
+                                          end
+                                       end
+                                    end") 84))
+   (test-case "dos newref distintos no son alias"
+              (check-equal? (corre "let a = newref(1) b = newref(1)
+                                    in begin setref(a, 9); deref(b) end end") 1))
+   (test-case "errores: operando que no es referencia, condicion no booleana"
+              (check-exn exn:fail? (lambda () (corre "deref(true)")))
+              (check-exn exn:fail? (lambda () (corre "setref(true, 1)")))
+              (check-exn exn:fail? (lambda () (corre "swap(newref(1), 2)")))
+              (check-exn exn:fail? (lambda () (corre "if 1 then 2 else 3 end"))))
+   (test-case "copia-por-valor: valores simples iguales, referencia a celda nueva"
+              (initialize-store!)
+              (check-equal? (copia-por-valor 3) 3)
+              (check-equal? (copia-por-valor #t) #t)
+              (let* ((r (newref! 5))
+                     (c (copia-por-valor r)))
+                (check-false (= (posicion-de r) (posicion-de c)))
+                (check-equal? (deref c) 5)
+                (setref! c 77)
+                (check-equal? (deref r) 5)))))
+
+(define paso-por-referencia-adicional
+  (test-suite
+   "Parte 2 (adicional): applyref"
+   (test-case "un contador incrementado por applyref tres veces"
+              (check-equal? (corre "let c = newref(0)
+                                    in let inc = proc (r : refto(num)) setref(r, add1(deref(r))) end
+                                       in begin
+                                            applyref inc (c);
+                                            applyref inc (c);
+                                            applyref inc (c);
+                                            deref(c)
+                                          end
+                                       end
+                                    end") 3))
+   (test-case "applyref con la misma celda en los dos parametros hace alias"
+              (check-equal? (corre "let c = newref(1)
+                                    in let f = proc (u : refto(num), v : refto(num))
+                                                 begin setref(u, 10); deref(v) end
+                                               end
+                                       in applyref f (c, c) end
+                                    end") 10))
+   (test-case "apply con la misma celda en los dos parametros no hace alias"
+              (check-equal? (corre "let c = newref(1)
+                                    in let f = proc (u : refto(num), v : refto(num))
+                                                 begin setref(u, 10); deref(v) end
+                                               end
+                                       in apply f (c, c) end
+                                    end") 1))
+   (test-case "applyref dentro de un procedimiento recursivo"
+              (check-equal? (corre "let c = newref(5)
+                                    in letrec num bajar (r : refto(num)) =
+                                         if ==(deref(r), 0)
+                                         then 0
+                                         else begin setref(r, sub1(deref(r))); applyref bajar (r) end
+                                         end
+                                       in begin applyref bajar (c); deref(c) end
+                                       end
+                                    end") 0))
+   (test-case "error: aridad incorrecta en applyref"
+              (check-exn exn:fail?
+                         (lambda () (corre "let c = newref(1)
+                                            in let f = proc (u : refto(num), v : refto(num)) 0 end
+                                               in applyref f (c) end
+                                            end"))))
+   (test-case "error: un identificador del ambiente inicial no es una referencia"
+              (check-exn exn:fail?
+                         (lambda () (corre "let f = proc (u : refto(num)) deref(u) end
+                                            in applyref f (n) end"))))))
+
+(define fallidas-adicionales
+  (+ (run-tests almacen-adicional)
+     (run-tests paso-por-referencia-adicional)))
+
+(eopl:printf "~%==========================================~%")
+(eopl:printf "  pruebas adicionales fallidas: ~s~%" fallidas-adicionales)
+(eopl:printf "==========================================~%")
