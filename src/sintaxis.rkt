@@ -92,7 +92,7 @@
     (tipo ("refto" "(" tipo ")") ref-tipo)
     (tipo ("(" (separated-list tipo "*") "->" tipo ")") proc-tipo)
 
-    
+    (primitiva ("+") sum-prim)
     (primitiva ("-") minus-prim)
     (primitiva ("*") mult-prim)
     (primitiva ("/") div-prim)
