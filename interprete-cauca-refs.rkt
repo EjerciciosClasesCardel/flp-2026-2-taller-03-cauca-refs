@@ -28,7 +28,7 @@
 (require "src/interprete.rkt")
 
 (provide (all-from-out "src/sintaxis.rkt"
-                       "src/almacen.rkt"
+                       "src/almacen.rkt"  
                        "src/ambiente.rkt"
                        "src/primitivas.rkt"
                        "src/interprete.rkt"))
