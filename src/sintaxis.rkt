@@ -1,5 +1,5 @@
 #lang eopl
-;Autores: Nombre1 Codigo1, Nombre2 Codigo2
+;Autores: Aura Maria Pelaez Luna 2459422, Valentina Valencia Lopez 2459626
 
 #|
   Taller 3 — Cauca con referencias y tipos.
@@ -13,49 +13,96 @@
   intérprete y los dos del chequeador, de modo que la gramática se
   escribe una sola vez y los dos lados recorren el mismo árbol.
 
-  Lo que hay ahora es una producción por no terminal, lo mínimo para
-  que los módulos carguen. La gramática completa es la del Taller 2 con
-  los dos cambios de la sección «Especificación de Cauca con
-  referencias y tipos» del enunciado.
+  La gramática es la del Taller 2 con dos cambios: las expresiones que
+  manipulan el almacén (newref, deref, setref, swap, begin, applyref) y
+  las anotaciones de tipo en proc y letrec.
 |#
 
 ;;; ==========================================================
 ;;; 1. Especificación léxica
 ;;; ==========================================================
-;; Los comentarios de línea, los identificadores y los números.
+;; Comentarios de línea con //, espacios, identificadores y números
+;; (enteros y flotantes, con signo opcional).
 
 (define especificacion-lexica
   '((white-sp (whitespace) skip)
     (comentario ("//" (arbno (not #\newline))) skip)
     (identificador (letter (arbno (or letter digit "_" "?"))) symbol)
-    (numero (digit (arbno digit)) number)))
+    (numero (digit (arbno digit)) number)
+    (numero ("-" digit (arbno digit)) number)
+    (numero (digit (arbno digit) "." digit (arbno digit)) number)
+    (numero ("-" digit (arbno digit) "." digit (arbno digit)) number)))
 
 ;;; ==========================================================
 ;;; 2. Especificación gramatical
 ;;; ==========================================================
-;; Cuatro no terminales: programa, expresion, tipo y primitiva.
-;;
-;; Faltan, con los nombres de constructor que fija el enunciado:
-;;   - las expresiones del Taller 2: var-exp, true-exp, false-exp,
-;;     if-exp, let-exp, proc-exp, app-exp, letrec-exp, case-exp
-;;   - las de la Parte 1: newref-exp, deref-exp, setref-exp, swap-exp,
-;;     begin-exp
-;;   - la de la Parte 2: app-ref-exp
-;;   - los tipos: num-tipo, bool-tipo, ref-tipo, proc-tipo
-;;   - las primitivas del Taller 2
-;;
-;; proc-exp y letrec-exp llevan las anotaciones de tipo. El tipo que
-;; antecede al nombre en letrec es el del resultado del procedimiento.
 
 (define especificacion-gramatical
-  '((programa (expresion) a-program)
+  '(;; <programa>
+    (programa (expresion) a-program)
 
+    ;; <expresion>
     (expresion (numero) lit-exp)
+    (expresion (identificador) var-exp)
+    (expresion ("true") true-exp)
+    (expresion ("false") false-exp)
     (expresion (primitiva "(" (separated-list expresion ",") ")") prim-exp)
+    (expresion ("if" expresion "then" expresion "else" expresion "end") if-exp)
+    (expresion ("let" (arbno identificador "=" expresion) "in" expresion "end") let-exp)
+    (expresion ("apply" expresion "(" (separated-list expresion ",") ")") app-exp)
+    (expresion ("case" expresion (arbno "of" numero "=>" expresion)
+                "otherwise" "=>" expresion "end") case-exp)
 
+    ;; <expresion> 
+    (expresion ("proc" "(" (separated-list identificador ":" tipo ",") ")"
+                expresion "end") proc-exp)
+    (expresion ("letrec" (arbno tipo identificador
+                                "(" (separated-list identificador ":" tipo ",") ")"
+                                "=" expresion)
+                "in" expresion "end") letrec-exp)
+
+    ;; <expresion> 
+    (expresion ("newref" "(" expresion ")") newref-exp)
+    (expresion ("deref" "(" expresion ")") deref-exp)
+    (expresion ("setref" "(" expresion "," expresion ")") setref-exp)
+    (expresion ("swap" "(" expresion "," expresion ")") swap-exp)
+    (expresion ("begin" expresion (arbno ";" expresion) "end") begin-exp)
+    (expresion ("applyref" expresion "(" (separated-list identificador ",") ")") app-ref-exp)
+
+    ;; <tipo> 
     (tipo ("num") num-tipo)
+    (tipo ("bool") bool-tipo)
+    (tipo ("refto" "(" tipo ")") ref-tipo)
+    (tipo ("(" (separated-list tipo "*") "->" tipo ")") proc-tipo)
 
-    (primitiva ("+") sum-prim)))
+    ;; <primitiva>
+    ;; n-arias (+, -, *, /)
+    (primitiva ("+") sum-prim)
+    (primitiva ("-") minus-prim)
+    (primitiva ("*") mult-prim)
+    (primitiva ("/") div-prim)
+    ;; unarias (add1, sub1, not, abs)
+    (primitiva ("add1") add-prim)
+    (primitiva ("sub1") sub-prim)
+    (primitiva ("not") not-prim)
+    (primitiva ("abs") abs-prim)
+    ;; binarias relacionales
+    (primitiva (">") mayor-prim)
+    (primitiva (">=") mayorigual-prim)
+    (primitiva ("<") menor-prim)
+    (primitiva ("<=") menorigual-prim)
+    (primitiva ("==") igual-prim)
+    ;; binarias booleanas
+    (primitiva ("and") and-prim)
+    (primitiva ("or") or-prim)
+    (primitiva ("xor") xor-prim)
+    (primitiva ("implica") implica-prim)
+    ;; n-arias sobre enteros (mínimo 2) y sobre números (mínimo 1)
+    (primitiva ("mcd") mcd-prim)
+    (primitiva ("mcm") mcm-prim)
+    (primitiva ("promedio") promedio-prim)
+    ;; ternaria
+    (primitiva ("entre") entre-prim)))
 
 ;;; ==========================================================
 ;;; 3. Datatypes, scanner y parser
@@ -66,13 +113,16 @@
 ;; mostrar-datatypes : -> void
 ;; Imprime los define-datatype que SLLGEN generó a partir de la gramática.
 (define mostrar-datatypes
-  (lambda () (sllgen:list-define-datatypes especificacion-lexica especificacion-gramatical)))
+  (lambda ()
+    (sllgen:list-define-datatypes especificacion-lexica especificacion-gramatical)))
 
 ;; scanner : string -> lista de tokens
+;; Convierte el texto de un programa en la lista de sus tokens.
 (define scanner
   (sllgen:make-string-scanner especificacion-lexica especificacion-gramatical))
 
 ;; parser : string -> programa
+;; Convierte el texto de un programa en su árbol de sintaxis abstracta.
 (define parser
   (sllgen:make-string-parser especificacion-lexica especificacion-gramatical))
 
