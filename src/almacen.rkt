@@ -1,5 +1,5 @@
 #lang eopl
-;Autores: Nombre1 Codigo1, Nombre2 Codigo2
+;Autores: Juan Sebastian Navarrete 202459562, Samuel Garcia Parra 202459476
 
 #|
   Taller 3 — Cauca con referencias y tipos.
@@ -25,34 +25,57 @@
     4. deref sobre una referencia fuera de rango levanta eopl:error
 |#
 
+(define-datatype referencia referencia?
+  (a-ref (pos integer?)))
+
 ;; empty-store : -> almacen
 ;; El almacén sin celdas.
 (define empty-store
   (lambda ()
-    (eopl:error 'empty-store "Sin implementar")))
+    '()))
+
+(define the-store (empty-store))
 
 ;; initialize-store! : -> void
 ;; Deja el almacén vacío. Se llama al empezar cada programa.
 (define initialize-store!
   (lambda ()
-    (eopl:error 'initialize-store! "Sin implementar")))
+    (set! the-store (empty-store))))
 
 ;; newref! : valor -> referencia
 ;; Agrega una celda con el valor y retorna la referencia que la nombra.
 (define newref!
   (lambda (val)
-    (eopl:error 'newref! "Sin implementar")))
+    (let ((next-pos (length the-store)))
+      (set! the-store (append the-store (list val)))
+      (a-ref next-pos))))
+
+;; replace-nth : lista x entero x valor -> lista
+;; Retorna una lista igual a lst salvo en la posición n, que queda con val.
+(define replace-nth
+  (lambda (lst n val)
+    (if (= n 0)
+        (cons val (cdr lst))
+        (cons (car lst) (replace-nth (cdr lst) (- n 1) val)))))
 
 ;; deref : referencia -> valor
 ;; Lee la celda. Si la referencia está fuera de rango, levanta eopl:error.
 (define deref
   (lambda (ref)
-    (eopl:error 'deref "Sin implementar")))
+    (cases referencia ref
+      (a-ref (pos)
+        (if (and (>= pos 0) (< pos (length the-store)))
+            (list-ref the-store pos)
+            (eopl:error 'deref "Referencia fuera de rango: ~s" pos))))))
 
 ;; setref! : referencia x valor -> void
 ;; Escribe el valor en la celda y deja las demás intactas.
 (define setref!
   (lambda (ref val)
-    (eopl:error 'setref! "Sin implementar")))
+    (cases referencia ref
+      (a-ref (pos)
+        (if (and (>= pos 0) (< pos (length the-store)))
+            (set! the-store (replace-nth the-store pos val))
+            (eopl:error 'setref! "Referencia fuera de rango: ~s" pos))))))
 
 (provide (all-defined-out))
