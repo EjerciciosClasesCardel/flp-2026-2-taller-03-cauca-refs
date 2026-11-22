@@ -1,5 +1,5 @@
 #lang eopl
-;Autores: Nombre1 Codigo1, Nombre2 Codigo2
+;Autores: Aura Maria Pelaez Luna 2459422, Valentina Valencia Lopez 2459626
 
 #|
   Pruebas del interpretador con referencias y del chequeador de tipos.
@@ -227,4 +227,213 @@ end") "num"))
 
 (eopl:printf "~%==========================================~%")
 (eopl:printf "  pruebas fallidas en total: ~s~%" fallidas)
+(eopl:printf "==========================================~%")
+
+;;; ==========================================================
+;;; Pruebas del grupo
+;;; ==========================================================
+
+
+(define saldo-original
+  "let saldo = newref(100)
+in
+  let retirar = proc (cuenta : refto(num), monto : num)
+                  if >=(deref(cuenta), monto)
+                  then begin
+                         setref(cuenta, -(deref(cuenta), monto));
+                         deref(cuenta)
+                       end
+                  else deref(cuenta)
+                  end
+                end
+  in
+    begin
+      applyref retirar (saldo, q);
+      deref(saldo)
+    end
+  end
+end")
+
+(define saldo-corregido
+  "let saldo = newref(100)
+in
+  let retirar = proc (cuenta : refto(num), monto : refto(num))
+                  if >=(deref(cuenta), deref(monto))
+                  then begin
+                         setref(cuenta, -(deref(cuenta), deref(monto)));
+                         deref(cuenta)
+                       end
+                  else deref(cuenta)
+                  end
+                end
+  in
+    let retiro = newref(q)
+    in
+      begin
+        applyref retirar (saldo, retiro);
+        deref(saldo)
+      end
+    end
+  end
+end")
+
+;;; ==========================================================
+;;; Interprete
+;;; ==========================================================
+
+(define almacen-grupo
+  (test-suite
+   "Almacen, alias y errores"
+   (test-case "swap de una referencia consigo misma"
+              (check-equal? (corre "let a = newref(8)
+in
+  begin
+    swap(a, a);
+    deref(a)
+  end
+end") 8))
+   (test-case "newref reserva celdas distintas"
+              (check-equal? (corre "let a = newref(1)
+    b = newref(1)
+in
+  begin
+    setref(a, 50);
+    deref(b)
+  end
+end") 1))
+   (test-case "una referencia puede guardar otra referencia"
+              (check-equal? (corre "let r = newref(newref(3))
+in deref(deref(r))
+end") 3))
+   (test-case "setref evalua de izquierda a derecha"
+              (check-equal? (corre "let c = newref(0)
+in
+  begin
+    setref(c, begin setref(c, 1); 2 end);
+    deref(c)
+  end
+end") 2))
+   (test-case "los casos de error del interprete"
+              (check-exn exn:fail? (lambda () (corre "if 1 then 2 else 3 end")))
+              (check-exn exn:fail? (lambda () (corre "begin 1; deref(2) end")))
+              (check-exn exn:fail? (lambda () (corre "swap(newref(1), 2)"))))
+   (test-case "deref y setref! fuera de rango levantan error"
+              (initialize-store!)
+              (check-exn exn:fail? (lambda () (deref (a-ref 3))))
+              (check-exn exn:fail? (lambda () (setref! (a-ref 0) 1))))
+   (test-case "solo newref! hace crecer el almacen"
+              (initialize-store!)
+              (newref! 10)
+              (newref! 20)
+              (setref! (a-ref 0) 99)
+              (check-equal? (get-store) '(99 20)))))
+
+(define paso-por-referencia-grupo
+  (test-suite
+   "Paso por referencia"
+   (test-case "alias con applyref"
+              (check-equal? (corre "let c = newref(5)
+in
+  let d = c
+  in
+    let inc = proc (u : refto(num))
+                setref(u, add1(deref(u)))
+              end
+    in
+      begin
+        applyref inc (d);
+        applyref inc (c);
+        deref(c)
+      end
+    end
+  end
+end") 7))
+   (test-case "apply copia la celda y applyref la comparte"
+              (check-equal? (corre "let c = newref(0)
+in
+  let f = proc (u : refto(num))
+            begin setref(u, 7); deref(u) end
+          end
+  in +(apply f (c), deref(c))
+  end
+end") 7)
+              (check-equal? (corre "let c = newref(0)
+in
+  let f = proc (u : refto(num))
+            begin setref(u, 7); deref(u) end
+          end
+  in +(applyref f (c), deref(c))
+  end
+end") 14))
+   (test-case "applyref con menos argumentos que parametros"
+              (check-exn exn:fail?
+                         (lambda () (corre "let a = newref(1)
+in
+  let f = proc (u : refto(num), v : refto(num))
+            deref(u)
+          end
+  in applyref f (a)
+  end
+end"))))
+   (test-case "el programa de saldo corregido retira 2"
+              (check-equal? (corre saldo-corregido) 98))))
+
+;;; ==========================================================
+;;; Chequeador
+;;; ==========================================================
+
+(define bien-tipados-grupo
+  (test-suite
+   "Programas bien tipados"
+   (test-case "if con entre"
+              (check-equal? (tipo-de "if entre(n, 1, 20) then 1 else 2 end") "num"))
+   (test-case "primitivas booleanas"
+              (check-equal? (tipo-de "and(>(n, m), not(false))") "bool"))
+   (test-case "letrec con recursion mutua"
+              (check-equal? (tipo-de "letrec bool par (k : num) =
+                                        if ==(k, 0) then true else apply impar (sub1(k)) end
+                                      bool impar (k : num) =
+                                        if ==(k, 0) then false else apply par (sub1(k)) end
+                                      in apply par (4) end") "bool"))
+   (test-case "procedimiento que recibe referencias"
+              (check-equal? (tipo-de "proc (u : refto(num), v : refto(num)) swap(u, v) end")
+                            "(refto(num) * refto(num) -> num)"))
+   (test-case "el programa de saldo corregido"
+              (check-equal? (tipo-de saldo-corregido) "num"))))
+
+(define mal-tipados-grupo
+  (test-suite
+   "Mensajes de error adicionales"
+   (test-case "el programa de saldo original no pasa el chequeador"
+              (check-true (contiene? (mensaje-de saldo-original)
+                                     "applyref exige identificadores de tipo refto(t); q tiene tipo num")))
+   (test-case "swap con celdas de distinto tipo"
+              (check-true (contiene? (mensaje-de "swap(newref(1), newref(true))")
+                                     "swap exige celdas del mismo tipo")))
+   (test-case "case con control que no es num"
+              (check-true (contiene? (mensaje-de "case true of 1 => 1 otherwise => 2 end")
+                                     "La expresion del case debe ser num, se encontro bool")))
+   (test-case "case con ramas distintas"
+              (check-true (contiene? (mensaje-de "case n of 1 => true otherwise => 2 end")
+                                     "Las ramas del case deben coincidir: bool vs num")))
+   (test-case "primitiva con argumento de tipo equivocado"
+              (check-true (contiene? (mensaje-de "+(1, true)")
+                                     "La primitiva + exige argumentos de tipo num, se encontro bool")))
+   (test-case "applyref con tipo de celda distinto al del parametro"
+              (check-true (contiene? (mensaje-de "let c = newref(true)
+in
+  let f = proc (u : refto(num)) deref(u) end
+  in applyref f (c)
+  end
+end")
+                                     "El argumento 1 debe ser refto(num), se encontro refto(bool)")))))
+
+(define fallidas-grupo
+  (+ (run-tests almacen-grupo)
+     (run-tests paso-por-referencia-grupo)
+     (run-tests bien-tipados-grupo)
+     (run-tests mal-tipados-grupo)))
+
+(eopl:printf "~%==========================================~%")
+(eopl:printf "  pruebas fallidas del grupo: ~s~%" fallidas-grupo)
 (eopl:printf "==========================================~%")
