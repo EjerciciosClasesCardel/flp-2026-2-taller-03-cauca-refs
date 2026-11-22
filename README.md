@@ -19,10 +19,8 @@ parte del grupo.
 
 | Nombre completo | Código | Correo institucional |
 |---|---|---|
-| | | |
-| | | |
-| | | |
-| | | |
+| Aura Maria Pelaez Luna | 2459422 | aura.pelaez@correounivalle.edu.co |
+| Valentina Valencia Lopez | 2459626 | valentina.valencia.lopez@correounivalle.edu.co |
 
 ## Cómo se entrega
 
