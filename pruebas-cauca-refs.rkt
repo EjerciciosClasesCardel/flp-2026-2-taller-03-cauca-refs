@@ -1,5 +1,5 @@
 #lang eopl
-;Autores: Nombre1 Codigo1, Nombre2 Codigo2
+;Autores: Nombre1 Codigo1, Samuel Garcia Parra 202459476
 
 #|
   Pruebas del interpretador con referencias y del chequeador de tipos.
@@ -219,11 +219,97 @@ end") "num"))
                                               in let f = proc (u : refto(num)) deref(u) end
                                                  in applyref f (z) end end"))))))
 
+(define adicionales-chequeador
+  (test-suite
+   "Parte 3: pruebas del grupo (reglas sin mensaje fijo en el cuadro)"
+   (test-case "swap con celdas de tipos distintos"
+              (check-true (contiene? (mensaje-de "swap(newref(1), newref(true))")
+                                     "swap exige celdas del mismo tipo: num vs bool")))
+   (test-case "swap y setref sobre algo que no es referencia"
+              (check-true (contiene? (mensaje-de "swap(1, newref(1))")
+                                     "swap espera refto(t), se encontro num"))
+              (check-true (contiene? (mensaje-de "setref(5, 1)")
+                                     "setref espera refto(t), se encontro num")))
+   (test-case "case: selector no numerico y ramas distintas"
+              (check-true (contiene? (mensaje-de "case true of 1 => 2 otherwise => 3 end")
+                                     "La expresion del case debe ser num, se encontro bool"))
+              (check-true (contiene? (mensaje-de "case n of 1 => true otherwise => 3 end")
+                                     "Las ramas del case deben coincidir: bool vs num")))
+   (test-case "primitivas: tipo y cantidad de argumentos"
+              (check-true (contiene? (mensaje-de "+(1, true)")
+                                     "El argumento 2 de + debe ser num, se encontro bool"))
+              (check-true (contiene? (mensaje-de "not(1)")
+                                     "El argumento 1 de not debe ser bool, se encontro num"))
+              (check-true (contiene? (mensaje-de "entre(1, 2)")
+                                     "La primitiva entre espera 3 argumentos y recibio 2")))
+   (test-case "begin retorna el tipo de la ultima expresion"
+              (check-equal? (tipo-de "begin 1; true end") "bool"))
+   (test-case "letrec con dos procedimientos que se llaman entre si"
+              (check-equal? (tipo-de "letrec bool par (k : num) =
+                                              if ==(k, 0) then true else apply impar (sub1(k)) end
+                                            bool impar (k : num) =
+                                              if ==(k, 0) then false else apply par (sub1(k)) end
+                                      in apply par (4) end") "bool"))
+   (test-case "applyref: aridad y tipo del parametro"
+              (check-true (contiene? (mensaje-de "let c = newref(1)
+                                                  in applyref proc (u : refto(num)) 1 end (c, c) end")
+                                     "El procedimiento espera 1 argumentos y recibio 2"))
+              (check-true (contiene? (mensaje-de "let c = newref(1)
+                                                  in applyref proc (u : refto(bool)) 1 end (c) end")
+                                     "El argumento 1 debe ser refto(bool), se encontro refto(num)")))
+   (test-case "applyref rechaza una variable que no es referencia"
+              (check-true (contiene? (mensaje-de "let z = 1
+                                                  in let f = proc (u : refto(num)) deref(u) end
+                                                     in applyref f (z) end end")
+                                     "applyref exige variables de tipo refto(t), z es num")))
+   (test-case "el programa de la Parte 4: q es num y no pasa; con una celda para q si"
+              (check-true (contiene? (mensaje-de "let saldo = newref(100)
+in
+  let retirar = proc (cuenta : refto(num), monto : num)
+                  if >=(deref(cuenta), monto)
+                  then begin
+                         setref(cuenta, -(deref(cuenta), monto));
+                         deref(cuenta)
+                       end
+                  else deref(cuenta)
+                  end
+                end
+  in
+    begin
+      applyref retirar (saldo, q);
+      deref(saldo)
+    end
+  end
+end")
+                                     "applyref exige variables de tipo refto(t), q es num"))
+              (check-equal? (tipo-de "let saldo = newref(100)
+in
+  let retirar = proc (cuenta : refto(num), monto : refto(num))
+                  if >=(deref(cuenta), deref(monto))
+                  then begin
+                         setref(cuenta, -(deref(cuenta), deref(monto)));
+                         deref(cuenta)
+                       end
+                  else deref(cuenta)
+                  end
+                end
+  in
+    let m = newref(q)
+    in
+      begin
+        applyref retirar (saldo, m);
+        deref(saldo)
+      end
+    end
+  end
+end") "num"))))
+
 (define fallidas
   (+ (run-tests almacen)
      (run-tests paso-por-referencia)
      (run-tests bien-tipados)
-     (run-tests mal-tipados)))
+     (run-tests mal-tipados)
+     (run-tests adicionales-chequeador)))
 
 (eopl:printf "~%==========================================~%")
 (eopl:printf "  pruebas fallidas en total: ~s~%" fallidas)
