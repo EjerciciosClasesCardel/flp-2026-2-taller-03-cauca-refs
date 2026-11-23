@@ -1,5 +1,5 @@
 #lang eopl
-;Autores: Nombre1 Codigo1, Nombre2 Codigo2
+;Autores: Juan Sebastian Navarrete 202459562, Samuel Garcia Parra 202459476
 
 #|
   Taller 3 — Cauca con referencias y tipos.
