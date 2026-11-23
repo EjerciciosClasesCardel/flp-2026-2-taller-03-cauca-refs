@@ -228,3 +228,53 @@ end") "num"))
 (eopl:printf "~%==========================================~%")
 (eopl:printf "  pruebas fallidas en total: ~s~%" fallidas)
 (eopl:printf "==========================================~%")
+
+;;; ==========================================================
+;;; Pruebas agregadas por el grupo
+;;; ==========================================================
+
+(define pruebas-adicionales
+  (test-suite
+   "Pruebas adicionales del grupo"
+   (test-case "swap de una referencia consigo misma conserva la celda"
+              (check-equal?
+               (corre "let c = newref(8) in begin swap(c, c); deref(c) end end")
+               8))
+   (test-case "case selecciona la rama otherwise en el interprete"
+              (check-equal?
+               (corre "case q of 0 => 10 of 1 => 20 otherwise => 30 end")
+               30))
+   (test-case "applyref reporta aridad incorrecta"
+              (check-exn
+               exn:fail?
+               (lambda ()
+                 (corre "let c = newref(1)
+                         in let f = proc (u : refto(num)) deref(u) end
+                            in applyref f () end end"))))
+   (test-case "begin toma el tipo de su ultima expresion"
+              (check-equal?
+               (tipo-de "begin true; newref(2) end")
+               "refto(num)"))
+   (test-case "swap rechaza referencias con contenidos de tipos distintos"
+              (check-exn
+               exn:fail?
+               (lambda ()
+                 (tipo-de "swap(newref(1), newref(true))"))))
+   (test-case "applyref exige el tipo anotado por el procedimiento"
+              (check-true
+               (contiene?
+                (mensaje-de "let c = newref(1)
+                             in let f = proc (n : num) n end
+                                in applyref f (c) end end")
+                "El argumento 1 debe ser num, se encontro refto(num)")))
+   (test-case "case exige una expresion de control numerica"
+              (check-exn exn:fail?
+                         (lambda ()
+                           (tipo-de "case true of 1 => 10 otherwise => 0 end"))))))
+
+(define fallidas-adicionales
+  (run-tests pruebas-adicionales))
+
+(eopl:printf "~%==========================================~%")
+(eopl:printf "  pruebas adicionales fallidas: ~s~%" fallidas-adicionales)
+(eopl:printf "==========================================~%")
