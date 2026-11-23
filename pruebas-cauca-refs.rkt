@@ -1,5 +1,5 @@
 #lang eopl
-;Autores: Nombre1 Codigo1, Samuel Garcia Parra 202459476
+;Autores: Juan Sebastian Navarrete 202459562, Samuel Garcia Parra 202459476
 
 #|
   Pruebas del interpretador con referencias y del chequeador de tipos.

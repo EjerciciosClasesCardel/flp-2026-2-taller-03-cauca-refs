@@ -8,15 +8,6 @@
   El módulo no requiere ningún otro: el almacén guarda valores
   cualesquiera y no necesita la gramática.
 
-  Falta el datatype de la referencia, que es un tipo abstracto y no un
-  entero desnudo:
-
-    (define-datatype referencia referencia?
-      (a-ref (pos integer?)))
-
-  Falta también la variable global con el almacén. Es el único lugar
-  del curso donde se usa set!.
-
   Invariante que las operaciones tienen que preservar, y que se demuestra
   en la Parte 5:
     1. toda referencia entregada por newref! apunta a una celda existente
